@@ -1,0 +1,83 @@
+.telemost-record-reminder {
+  position: fixed;
+  inset: 24px 24px auto auto;
+  z-index: 2147483647;
+  width: min(360px, calc(100vw - 32px));
+  padding: 18px 18px 16px;
+  border: 2px solid #ff4d4f;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff1f0 0%, #ffd8bf 100%);
+  box-shadow: 0 24px 60px rgba(95, 24, 0, 0.28);
+  color: #471200;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.telemost-record-reminder[hidden] {
+  display: none !important;
+}
+
+.telemost-record-reminder__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 77, 79, 0.14);
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.telemost-record-reminder__title {
+  margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.telemost-record-reminder__text {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.telemost-record-reminder__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.telemost-record-reminder__checkbox {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: #ff4d4f;
+  cursor: pointer;
+}
+
+.telemost-record-reminder__hint {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(71, 18, 0, 0.76);
+}
+
+@media (max-width: 640px) {
+  .telemost-record-reminder {
+    inset: auto 12px 12px 12px;
+    width: auto;
+    padding: 16px;
+  }
+
+  .telemost-record-reminder__title {
+    font-size: 24px;
+  }
+}

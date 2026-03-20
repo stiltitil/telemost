@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Telemost Record Reminder",
+  "version": "1.0.0",
+  "description": "Показывает напоминание включить запись при входе во встречу Яндекс Телемоста.",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://telemost.360.yandex.ru/*",
+        "*://telemost.yandex.ru/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
