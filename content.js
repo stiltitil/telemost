@@ -21,6 +21,7 @@
   let routeWatchTimer = null;
   let lastSeenPath = location.pathname;
   let activeAudioContext = null;
+  let selectedVoice = null;
 
   const getDismissedKey = () => `${STORAGE_KEY_PREFIX}${location.pathname}`;
 
@@ -39,7 +40,45 @@
     return activeAudioContext;
   };
 
-  const playRobotChime = () => {
+  const pickPreferredVoice = () => {
+    if (!("speechSynthesis" in window)) {
+      return null;
+    }
+
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) {
+      return null;
+    }
+
+    const preferredPatterns = [
+      /irina/i,
+      /svetlana/i,
+      /female/i,
+      /woman/i,
+      /ru-ru/i,
+      /russian/i,
+      /ru/i
+    ];
+
+    for (const pattern of preferredPatterns) {
+      const match = voices.find((voice) => pattern.test(`${voice.name} ${voice.lang}`));
+      if (match) {
+        return match;
+      }
+    }
+
+    return voices[0];
+  };
+
+  const ensureVoiceLoaded = () => {
+    if (!("speechSynthesis" in window)) {
+      return;
+    }
+
+    selectedVoice = pickPreferredVoice();
+  };
+
+  const playSoftChime = () => {
     const audioContext = getAudioContext();
     if (!audioContext) {
       return;
@@ -56,30 +95,30 @@
     const compressor = audioContext.createDynamicsCompressor();
 
     bandPass.type = "bandpass";
-    bandPass.frequency.value = 920;
-    bandPass.Q.value = 1.8;
+    bandPass.frequency.value = 780;
+    bandPass.Q.value = 1.2;
 
     lowPass.type = "lowpass";
-    lowPass.frequency.value = 1800;
+    lowPass.frequency.value = 2200;
 
     masterGain.gain.setValueAtTime(0.0001, now);
-    masterGain.gain.exponentialRampToValueAtTime(0.1, now + 0.02);
-    masterGain.gain.exponentialRampToValueAtTime(0.03, now + 0.16);
-    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    masterGain.gain.exponentialRampToValueAtTime(0.05, now + 0.03);
+    masterGain.gain.exponentialRampToValueAtTime(0.025, now + 0.14);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
 
     compressor.threshold.value = -24;
     compressor.knee.value = 12;
-    compressor.ratio.value = 10;
+    compressor.ratio.value = 6;
 
     const mainOsc = audioContext.createOscillator();
     const subOsc = audioContext.createOscillator();
 
-    mainOsc.type = "sawtooth";
-    subOsc.type = "square";
-    mainOsc.frequency.setValueAtTime(180, now);
-    mainOsc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
-    subOsc.frequency.setValueAtTime(90, now);
-    subOsc.frequency.exponentialRampToValueAtTime(55, now + 0.3);
+    mainOsc.type = "sine";
+    subOsc.type = "triangle";
+    mainOsc.frequency.setValueAtTime(640, now);
+    mainOsc.frequency.exponentialRampToValueAtTime(520, now + 0.36);
+    subOsc.frequency.setValueAtTime(320, now);
+    subOsc.frequency.exponentialRampToValueAtTime(260, now + 0.36);
 
     mainOsc.connect(bandPass);
     subOsc.connect(bandPass);
@@ -90,82 +129,8 @@
 
     mainOsc.start(now);
     subOsc.start(now);
-    mainOsc.stop(now + 0.34);
-    subOsc.stop(now + 0.34);
-  };
-
-  const playVoiceSegment = (audioContext, startTime, config) => {
-    const oscillator = audioContext.createOscillator();
-    const subOscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    const bandPass = audioContext.createBiquadFilter();
-    const lowPass = audioContext.createBiquadFilter();
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
-
-    oscillator.type = "sawtooth";
-    subOscillator.type = "square";
-    oscillator.frequency.setValueAtTime(config.baseFrequency, startTime);
-    oscillator.frequency.exponentialRampToValueAtTime(config.baseFrequency * 0.82, startTime + config.duration);
-    subOscillator.frequency.setValueAtTime(config.baseFrequency / 2, startTime);
-    subOscillator.frequency.exponentialRampToValueAtTime((config.baseFrequency / 2) * 0.84, startTime + config.duration);
-
-    bandPass.type = "bandpass";
-    bandPass.frequency.setValueAtTime(config.formant, startTime);
-    bandPass.Q.setValueAtTime(5, startTime);
-
-    lowPass.type = "lowpass";
-    lowPass.frequency.setValueAtTime(1500, startTime);
-
-    lfo.type = "triangle";
-    lfo.frequency.setValueAtTime(config.modulationRate, startTime);
-    lfoGain.gain.setValueAtTime(14, startTime);
-
-    gainNode.gain.setValueAtTime(0.0001, startTime);
-    gainNode.gain.exponentialRampToValueAtTime(config.volume, startTime + 0.03);
-    gainNode.gain.exponentialRampToValueAtTime(config.volume * 0.7, startTime + config.duration * 0.6);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + config.duration);
-
-    lfo.connect(lfoGain);
-    lfoGain.connect(oscillator.frequency);
-
-    oscillator.connect(bandPass);
-    subOscillator.connect(bandPass);
-    bandPass.connect(lowPass);
-    lowPass.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.start(startTime);
-    subOscillator.start(startTime);
-    lfo.start(startTime);
-    oscillator.stop(startTime + config.duration);
-    subOscillator.stop(startTime + config.duration);
-    lfo.stop(startTime + config.duration);
-  };
-
-  const playRobotSpeech = () => {
-    const audioContext = getAudioContext();
-    if (!audioContext) {
-      return;
-    }
-
-    if (audioContext.state === "suspended") {
-      audioContext.resume().catch(() => {});
-    }
-
-    const now = audioContext.currentTime + 0.04;
-    const segments = [
-      { delay: 0.00, duration: 0.22, baseFrequency: 122, formant: 500, modulationRate: 26, volume: 0.045 },
-      { delay: 0.18, duration: 0.18, baseFrequency: 116, formant: 920, modulationRate: 22, volume: 0.04 },
-      { delay: 0.42, duration: 0.28, baseFrequency: 110, formant: 640, modulationRate: 20, volume: 0.05 },
-      { delay: 0.78, duration: 0.20, baseFrequency: 98, formant: 430, modulationRate: 18, volume: 0.045 },
-      { delay: 0.96, duration: 0.17, baseFrequency: 95, formant: 860, modulationRate: 17, volume: 0.04 },
-      { delay: 1.24, duration: 0.30, baseFrequency: 88, formant: 560, modulationRate: 16, volume: 0.055 }
-    ];
-
-    for (const segment of segments) {
-      playVoiceSegment(audioContext, now + segment.delay, segment);
-    }
+    mainOsc.stop(now + 0.42);
+    subOsc.stop(now + 0.42);
   };
 
   const stopReminderAudio = () => {
@@ -181,8 +146,23 @@
   };
 
   const speakReminder = () => {
-    playRobotChime();
-    playRobotSpeech();
+    playSoftChime();
+
+    if (!("speechSynthesis" in window)) {
+      return;
+    }
+
+    ensureVoiceLoaded();
+
+    const utterance = new SpeechSynthesisUtterance("Пожалуйста, поставь запись. Так будет лучше.");
+    utterance.lang = selectedVoice?.lang || document.documentElement.lang || "ru-RU";
+    utterance.voice = selectedVoice;
+    utterance.rate = 0.92;
+    utterance.pitch = 1.22;
+    utterance.volume = 1;
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   };
 
   const dismissReminder = () => {
@@ -339,6 +319,11 @@
     document.addEventListener("DOMContentLoaded", initObserver, { once: true });
   } else {
     initObserver();
+  }
+
+  if ("speechSynthesis" in window) {
+    ensureVoiceLoaded();
+    window.speechSynthesis.addEventListener("voiceschanged", ensureVoiceLoaded, { once: true });
   }
 
   watchRouteChanges();
